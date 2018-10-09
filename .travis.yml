@@ -2,16 +2,18 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-language: go
-
-go:
-  - 1.11
-
 services:
   - redis-server
 
-# before_install:
-#   - go get -t -v ./...
+language: go
+
+go:
+  - 1.11.x
+
+env:
+  - GO111MODULE=on
+
+install: true
 
 script:
   - go test -race -coverprofile=coverage.txt -covermode=atomic
