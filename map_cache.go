@@ -7,16 +7,30 @@ package cache
 import (
 	"sync"
 	"time"
+
+	"github.com/st3fan/task"
+)
+
+const (
+	defaultExpirationInterval = time.Minute * 1
 )
 
 type MapCacheConfig struct {
-	TTL time.Duration
+	ExpirationInterval time.Duration
 }
 
 func newMapCacheConfig() MapCacheConfig {
 	return MapCacheConfig{
-		TTL: time.Minute * 5,
+		ExpirationInterval: defaultExpirationInterval,
 	}
+}
+
+func updateMapCacheConfig(override MapCacheConfig) MapCacheConfig {
+	config := newMapCacheConfig()
+	if override.ExpirationInterval != 0 {
+		config.ExpirationInterval = override.ExpirationInterval
+	}
+	return config
 }
 
 type mapCacheEntry struct {
@@ -36,8 +50,9 @@ func (e *mapCacheEntry) expired() bool {
 }
 
 type MapCache struct {
-	config MapCacheConfig
-	values sync.Map
+	config         MapCacheConfig
+	values         sync.Map
+	expirationTask *task.Task
 }
 
 func NewMapCache() (*MapCache, error) {
@@ -45,10 +60,12 @@ func NewMapCache() (*MapCache, error) {
 }
 
 func NewMapCacheWithConfig(config MapCacheConfig) (*MapCache, error) {
-	return &MapCache{
-		config: config,
+	cache := &MapCache{
+		config: updateMapCacheConfig(config),
 		values: sync.Map{},
-	}, nil
+	}
+	cache.expirationTask = task.New(cache.expireEntries)
+	return cache, nil
 }
 
 func (c *MapCache) Clear() error {
@@ -71,17 +88,37 @@ func (c *MapCache) Get(key string) ([]byte, error) {
 	return nil, nil
 }
 
-func (c *MapCache) Put(key string, value []byte) error {
-	c.values.Store(key, newMapCacheEntry(value, c.config.TTL))
+func (c *MapCache) Put(key string, value []byte, ttl time.Duration) error {
+	c.values.Store(key, newMapCacheEntry(value, ttl))
 	return nil
 }
 
-func (c *MapCache) PutIfAbsent(key string, value []byte) error {
-	c.values.LoadOrStore(key, newMapCacheEntry(value, c.config.TTL))
+func (c *MapCache) PutIfAbsent(key string, value []byte, ttl time.Duration) error {
+	c.values.LoadOrStore(key, newMapCacheEntry(value, ttl))
 	return nil
 }
 
 func (c *MapCache) Close() error {
-	// Stop the collector go routine
+	c.expirationTask.SignalAndWait()
 	return nil
+}
+
+func (c *MapCache) expireEntries(task *task.Task) {
+	ticker := time.NewTicker(c.config.ExpirationInterval)
+
+	for {
+		select {
+		case <-ticker.C:
+			println("Expiring entries")
+			c.values.Range(func(key, value interface{}) bool {
+				entry := value.(*mapCacheEntry)
+				if entry.expired() {
+					c.values.Delete(key)
+				}
+				return false
+			})
+		case <-task.HasBeenClosed():
+			return
+		}
+	}
 }

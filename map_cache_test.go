@@ -17,12 +17,17 @@ func TestNewMapCache(t *testing.T) {
 	c, err := NewMapCache()
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
+
+	assert.EqualValues(t, defaultExpirationInterval, c.config.ExpirationInterval)
 }
 
-func TestNewMapCacheWithConfig(t *testing.T) {
-	c, err := NewMapCacheWithConfig(MapCacheConfig{TTL: time.Millisecond * 500})
+func TestNewMapCacheWithConfigExpirationInterval(t *testing.T) {
+	c, err := NewMapCacheWithConfig(MapCacheConfig{
+		ExpirationInterval: time.Minute * 1,
+	})
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
+	assert.EqualValues(t, time.Minute*1, c.config.ExpirationInterval)
 }
 
 func TestMapCachePutItem(t *testing.T) {
@@ -30,7 +35,7 @@ func TestMapCachePutItem(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Minute)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -43,10 +48,10 @@ func TestMapCachePutIfAbsent(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.PutIfAbsent("key", []byte("value1"))
+	err = c.PutIfAbsent("key", []byte("value1"), time.Minute)
 	assert.NoError(t, err)
 
-	err = c.PutIfAbsent("key", []byte("value2"))
+	err = c.PutIfAbsent("key", []byte("value2"), time.Minute)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -55,11 +60,11 @@ func TestMapCachePutIfAbsent(t *testing.T) {
 }
 
 func TestMapCacheExpiredItem(t *testing.T) {
-	c, err := NewMapCacheWithConfig(MapCacheConfig{TTL: time.Millisecond * 500})
+	c, err := NewMapCache()
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Millisecond*500)
 	assert.NoError(t, err)
 
 	value1, err := c.Get("key")
@@ -78,7 +83,7 @@ func TestMapCacheEvict(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Minute)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -99,7 +104,7 @@ func TestMapCacheClear(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Minute)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -112,4 +117,32 @@ func TestMapCacheClear(t *testing.T) {
 	value2, err := c.Get("key")
 	assert.NoError(t, err)
 	assert.Nil(t, value2)
+}
+
+func TestExpireEntriesTask(t *testing.T) {
+	c, err := NewMapCacheWithConfig(MapCacheConfig{
+		ExpirationInterval: time.Millisecond * 250,
+	})
+	assert.NotNil(t, c)
+	assert.NoError(t, err)
+
+	defer c.Close()
+
+	err = c.Put("key", []byte("value"), time.Second)
+	assert.NoError(t, err)
+
+	value, err := c.Get("key")
+	assert.NoError(t, err)
+	assert.EqualValues(t, []byte("value"), value)
+
+	time.Sleep(time.Millisecond * 2500)
+
+	value2, err := c.Get("key")
+	assert.NoError(t, err)
+	assert.Nil(t, value2)
+
+	// Directly access the map to make sure the entry has been removed
+	val, ok := c.values.Load("key")
+	assert.Nil(t, val)
+	assert.False(t, ok)
 }

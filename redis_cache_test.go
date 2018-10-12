@@ -24,7 +24,7 @@ func TestRedisCachePutItem(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Second)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -40,10 +40,10 @@ func TestRedisCachePutIfAbsent(t *testing.T) {
 	err = c.Evict("key")
 	assert.NoError(t, err)
 
-	err = c.PutIfAbsent("key", []byte("value1"))
+	err = c.PutIfAbsent("key", []byte("value1"), time.Second)
 	assert.NoError(t, err)
 
-	err = c.PutIfAbsent("key", []byte("value2"))
+	err = c.PutIfAbsent("key", []byte("value2"), time.Second)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -54,7 +54,6 @@ func TestRedisCachePutIfAbsent(t *testing.T) {
 func TestRedisCacheExpiredItem(t *testing.T) {
 	config := RedisCacheConfig{
 		Addr:   "127.0.0.1:6379",
-		TTL:    time.Millisecond * 500,
 		Prefix: "RedisCache",
 	}
 
@@ -62,14 +61,14 @@ func TestRedisCacheExpiredItem(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Second)
 	assert.NoError(t, err)
 
 	value1, err := c.Get("key")
 	assert.NoError(t, err)
 	assert.EqualValues(t, []byte("value"), value1)
 
-	time.Sleep(time.Millisecond * 750)
+	time.Sleep(time.Millisecond * 1500)
 
 	value2, err := c.Get("key")
 	assert.NoError(t, err)
@@ -81,7 +80,7 @@ func TestRedisCacheEvict(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Second)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")
@@ -102,7 +101,7 @@ func TestRedisCacheClear(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	err = c.Put("key", []byte("value"))
+	err = c.Put("key", []byte("value"), time.Second)
 	assert.NoError(t, err)
 
 	value, err := c.Get("key")

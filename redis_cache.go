@@ -12,14 +12,12 @@ import (
 
 type RedisCacheConfig struct {
 	Addr   string
-	TTL    time.Duration
 	Prefix string
 }
 
 func newRedisCacheConfig() RedisCacheConfig {
 	return RedisCacheConfig{
 		Addr:   "127.0.0.1:6379",
-		TTL:    time.Minute * 5,
 		Prefix: "RedisCache",
 	}
 }
@@ -60,12 +58,12 @@ func (c *RedisCache) Get(key string) ([]byte, error) {
 	return value, err
 }
 
-func (c *RedisCache) Put(key string, value []byte) error {
-	return c.client.Set(c.keyName(key), value, c.config.TTL).Err()
+func (c *RedisCache) Put(key string, value []byte, ttl time.Duration) error {
+	return c.client.Set(c.keyName(key), value, ttl).Err()
 }
 
-func (c *RedisCache) PutIfAbsent(key string, value []byte) error {
-	return c.client.SetNX(c.keyName(key), value, c.config.TTL).Err()
+func (c *RedisCache) PutIfAbsent(key string, value []byte, ttl time.Duration) error {
+	return c.client.SetNX(c.keyName(key), value, ttl).Err()
 }
 
 func (c *RedisCache) Close() error {
