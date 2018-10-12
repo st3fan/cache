@@ -109,7 +109,6 @@ func (c *MapCache) expireEntries(task *task.Task) {
 	for {
 		select {
 		case <-ticker.C:
-			println("Expiring entries")
 			c.values.Range(func(key, value interface{}) bool {
 				entry := value.(*mapCacheEntry)
 				if entry.expired() {
