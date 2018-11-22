@@ -11,8 +11,9 @@ import (
 )
 
 type RedisCacheConfig struct {
-	Addr   string
-	Prefix string
+	Addr     string
+	Password string
+	Prefix   string
 }
 
 func newRedisCacheConfig() RedisCacheConfig {
@@ -34,7 +35,7 @@ func NewRedisCache() (*RedisCache, error) {
 func NewRedisCacheWithConfig(config RedisCacheConfig) (*RedisCache, error) {
 	return &RedisCache{
 		config: config,
-		client: redis.NewClient(&redis.Options{Addr: config.Addr}),
+		client: redis.NewClient(&redis.Options{Addr: config.Addr, Password: config.Password}),
 	}, nil
 }
 
